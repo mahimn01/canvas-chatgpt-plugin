@@ -35,7 +35,7 @@ python3 scripts/tunnel.py stop
 python3 scripts/tunnel.py start
 ```
 
-Starting again reuses the saved private launcher. Passing Canvas environment variables explicitly updates that launcher. File downloads follow only configured exact hostnames; if your institution redirects files elsewhere, verify that storage hostname before adding it. Never use a wildcard or allow arbitrary URLs.
+Starting again reuses the saved private launcher. To update that launcher, set both `CANVAS_BASE_URL` and `CANVAS_TOKEN_FILE` along with the new `CANVAS_FILE_HOSTS`, then run `stop` and `start`. File downloads follow only configured exact hostnames; if your institution redirects files elsewhere, verify that storage hostname before adding it. For storage hostnames that embed the file ID, a verified template such as `account-{file_id}.storage.example.edu` expands to only the requested file's exact hostname. Never use a wildcard or allow arbitrary URLs.
 
 See [private setup and troubleshooting](docs/private-setup.md).
 

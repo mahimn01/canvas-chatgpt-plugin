@@ -13,7 +13,7 @@ from starlette.testclient import TestClient
 
 from canvas_companion.auth import IdentityProvider
 from canvas_companion.canvas import CanvasClient, clean
-from canvas_companion.config import Institution, Settings
+from canvas_companion.config import Institution, Settings, file_host
 from canvas_companion.connections import Connections
 from canvas_companion.network import ServiceError, validate_url
 from canvas_companion.operations import tool_get_inbox_conversation
@@ -136,6 +136,31 @@ async def test_locked_file_is_never_downloaded():
     with pytest.raises(ServiceError):
         await canvas(network).file_text(1)
     assert len(network.calls) == 1
+
+
+async def test_file_specific_storage_host_allows_only_requested_file():
+    network = QueueNetwork(
+        ({"filename": "sample.txt", "size": 5, "url": "https://canvas.example.edu/files/42"}, {}),
+        (302, {"Location": "https://account-42.storage.example.edu/file"}, b""),
+        (200, {}, b"hello"),
+    )
+    client = canvas(network)
+    client.institution.file_hosts = ("account-{file_id}.storage.example.edu",)
+    assert (await client.file_text(42))["text"] == "hello"
+    assert all("headers" not in call[2] for call in network.calls[1:])
+    network.responses = [
+        ({"filename": "sample.txt", "url": "https://account-43.storage.example.edu/file"}, {}),
+    ]
+    with pytest.raises(ServiceError):
+        await client.file_text(42)
+    for host in [
+        "*.example.edu",
+        "account-{other}.example.edu",
+        "evil.example/path",
+        "UPPER.example",
+    ]:
+        with pytest.raises(ValueError):
+            file_host(host, 42)
 
 
 def test_output_redacts_credentials_and_keeps_valid_json():

@@ -7,6 +7,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 
@@ -116,24 +117,30 @@ def main():
         state = json.loads(status.stdout)
         if not (state.get("process_running") and state.get("healthy") and state.get("ready")):
             raise SystemExit("Runtime is not ready; inspect official tunnel-client diagnostics.")
-        health = subprocess.run(
-            [
-                str(client),
-                "health",
-                "--url",
-                state["ui_url"].removesuffix("/ui"),
-                "--require-control-plane-poll",
-                "--json",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
+        for attempt in range(10):
+            health = subprocess.run(
+                [
+                    str(client),
+                    "health",
+                    "--url",
+                    state["ui_url"].removesuffix("/ui"),
+                    "--require-control-plane-poll",
+                    "--json",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if health.returncode == 0 or args.action != "start" or attempt == 9:
+                break
+            time.sleep(1)
         print(
             "OpenAI control-plane poll: "
             + ("ok" if health.returncode == 0 else "not confirmed yet; retry status")
         )
-        if health.returncode:
+        # A new daemon can be ready before its first long-poll completes.
+        # Status remains strict; successful process creation is still a successful start.
+        if health.returncode and args.action == "status":
             raise SystemExit(1)
 
 

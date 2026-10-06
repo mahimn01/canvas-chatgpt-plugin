@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -25,6 +26,19 @@ def https_origin(value: str) -> str:
     return value.rstrip("/")
 
 
+def file_host(host: str, file_id: int) -> str:
+    """Expand only a file-ID placeholder into one exact, configured DNS hostname."""
+    if isinstance(file_id, bool) or not isinstance(file_id, int) or file_id <= 0:
+        raise ValueError("File ID must be a positive integer")
+    if host.count("{file_id}") > 1:
+        raise ValueError("Only one file-ID placeholder is allowed")
+    expanded = host.replace("{file_id}", str(file_id))
+    label = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+    if len(expanded) > 253 or not re.fullmatch(rf"{label}(?:\.{label})+", expanded):
+        raise ValueError("File hosts must be exact lowercase DNS names, optionally with {file_id}")
+    return expanded
+
+
 @dataclass(frozen=True)
 class Institution:
     id: str
@@ -39,8 +53,7 @@ class Institution:
         if not self.id.isalnum() or not self.client_id or not self.client_secret:
             raise ValueError("Institution needs an alphanumeric ID and OAuth credentials")
         for host in self.file_hosts:
-            if urlsplit(https_origin("https://" + host)).hostname != host:
-                raise ValueError("File hosts must be exact lowercase hostnames")
+            file_host(host, 1)
 
 
 @dataclass(frozen=True)

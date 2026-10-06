@@ -7,6 +7,7 @@ import sys
 from pathlib import PurePosixPath
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit
 
+from .config import file_host
 from .network import ServiceError, validate_url
 
 SENSITIVE = re.compile(
@@ -100,6 +101,7 @@ class CanvasClient:
         return combined
 
     async def file_text(self, file_id, max_chars=120000):
+        allowed = {self.host, *(file_host(host, file_id) for host in self.institution.file_hosts)}
         metadata = await self.get(f"/api/v1/files/{file_id}")
         if metadata.get("locked_for_user") or metadata.get("hidden_for_user"):
             raise ServiceError("This file is not accessible to your Canvas account")
@@ -110,7 +112,6 @@ class CanvasClient:
         if metadata.get("size", 0) > limit:
             raise ServiceError("File exceeds the 10 MiB extraction limit")
         url = metadata.get("url", "")
-        allowed = {self.host, *self.institution.file_hosts}
         for _ in range(6):
             validate_url(url, allowed)
             # File URLs already carry their own authorization. Never send the Canvas bearer here.
