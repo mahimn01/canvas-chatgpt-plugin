@@ -1,0 +1,10 @@
+[
+  {
+    "id": "example",
+    "name": "Example University",
+    "origin": "https://your-school.instructure.com",
+    "client_id": "replace-with-approved-developer-key-id",
+    "client_secret_env": "CANVAS_INSTITUTION_CLIENT_SECRET",
+    "file_hosts": []
+  }
+]
